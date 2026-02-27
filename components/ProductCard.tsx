@@ -9,7 +9,7 @@ export default function ProductCard({ p }: { p: Product }) {
   const canBuyOnline = p.price > 0;
 
   const whatsapp = buildWhatsAppLink(
-    "+18492822833",
+    "+18093185061",
     `Hola, quiero ordenar:\n- ${p.name} (${p.variant})\n${canBuyOnline ? `Precio: RD$${p.price}` : ""}\n\nNombre:\nDirección/Zona:\n`
   );
 
@@ -55,13 +55,13 @@ export default function ProductCard({ p }: { p: Product }) {
                 return;
               }
               addToCart({
-                id: p.id,
-                name: p.name,
-                variant: p.variant,
-                price: p.price,
-                qty: 1,
-                image: p.image,
-                });
+            id: p.id,
+            name: p.name,
+            variant: p.variant,
+            price: p.price,
+            qty: 1,
+            image: p.image,
+            });
               alert("Agregado al carrito ✅");
             }}
           >
