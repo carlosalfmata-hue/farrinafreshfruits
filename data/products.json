@@ -1,0 +1,66 @@
+[
+  {
+    "id": "rubessa-premium-2lb",
+    "name": "RUBESSA - Fresas Premium",
+    "category": "Fresas",
+    "variant": "2 lb",
+    "price": 450,
+    "image": "/images/rubessa.jpg",
+    "short": "Selección premium, frescura superior."
+  },
+  {
+    "id": "rubessa-premium-5lb",
+    "name": "RUBESSA - Fresas Premium",
+    "category": "Fresas",
+    "variant": "5 lb",
+    "price": 450,
+    "image": "/images/rubessa.jpg",
+    "short": "Ideal para eventos y compras grandes."
+  },
+  {
+    "id": "altessa-selectas-2lb",
+    "name": "ALTESSA - Fresas Selectas",
+    "category": "Fresas",
+    "variant": "2 lb",
+    "price": 200,
+    "image": "/images/altessa.jpg",
+    "short": "Selectas, perfectas para el día a día."
+  },
+  {
+    "id": "altessa-selectas-5lb",
+    "name": "ALTESSA - Fresas Selectas",
+    "category": "Fresas",
+    "variant": "5 lb",
+    "price": 600,
+    "image": "/images/altessa.jpg",
+    "short": "Mayor volumen, mejor rendimiento."
+  },
+  {
+    "id": "rosvella-listas",
+    "name": "ROSVELLA - Listas para disfrutar",
+    "category": "Fresas",
+    "variant": "Unidad",
+    "price": 400,
+    "image": "/images/rosvella.jpg",
+    "short": "Presentación lista para consumir."
+  },
+
+  {
+    "id": "tomate",
+    "name": "Tomate",
+    "category": "Vegetales",
+    "variant": "Libra",
+    "price": 100,
+    "image": "/images/tomate.jpg",
+    "short": "Fresco y de alta rotación."
+  },
+  {
+    "id": "pepino",
+    "name": "Pepino",
+    "category": "Vegetales",
+    "variant": "Libra",
+    "price": 800,
+    "image": "/images/pepino.jpg",
+    "short": "Crocante y fresco."
+  }
+]
