@@ -1,272 +1,268 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { CartItem, getCart, removeFromCart, updateQty } from "@/lib/cart";
-import { buildWhatsAppLink } from "@/lib/whatsapp";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import {
+  getCart,
+  updateQty,
+  removeFromCart,
+  clearCart,
+  getTotals,
+} from "@/lib/cart";
 
-type PaymentMethod = "Transferencia" | "Contra entrega" | "Pago online (próximamente)";
+type Customer = {
+  name: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  rnc?: string;
+};
+
+function moneyRD(n: number) {
+  return `RD$ ${n.toFixed(2)}`;
+}
 
 export default function CarritoPage() {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [nombre, setNombre] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [zona, setZona] = useState("Santo Domingo");
-  const [direccion, setDireccion] = useState("");
-  const [notas, setNotas] = useState("");
-  const [pago, setPago] = useState<PaymentMethod>("Transferencia");
+  const [refresh, setRefresh] = useState(0);
 
-  useEffect(() => setItems(getCart()), []);
+  // lee carrito (localStorage)
+  const cart = getCart();
 
-  const subtotal = useMemo(
-    () => items.reduce((sum, it) => sum + it.price * it.qty, 0),
-    [items]
-  );
+  // Facturable = price > 0
+  const billable = cart.filter((x) => typeof x.price === "number" && x.price > 0);
+  const consult = cart.filter((x) => !x.price || x.price <= 0);
 
-  // Delivery simple para Fase 1 (ajústalo luego)
-  const delivery = useMemo(() => {
-    if (items.length === 0) return 0;
-    // Puedes cambiar esto por zonas
-    return 150; // RD$ fijo de ejemplo
-  }, [items.length]);
+  const totals = useMemo(() => getTotals(), [refresh]);
 
-  const total = subtotal + delivery;
+  const [customer, setCustomer] = useState<Customer>({
+    name: "",
+    phone: "",
+    email: "",
+    address: "",
+    rnc: "",
+  });
 
-  const whatsappMsg = useMemo(() => {
-    const lines = items.map((it) => {
-      const sub = it.price * it.qty;
-      const priceTxt = it.price > 0 ? `RD$${it.price}` : "Consultar";
-      const subTxt = it.price > 0 ? `RD$${sub}` : "—";
-      return `• ${it.name} (${it.variant}) x${it.qty} | ${priceTxt} | Sub: ${subTxt}`;
+  async function downloadInvoice() {
+    if (!billable.length) {
+      alert("No hay productos con precio para facturar (todo está en 'Consultar').");
+      return;
+    }
+
+    if (!customer.name.trim() || !customer.phone.trim()) {
+      alert("Completa al menos Nombre y Teléfono para generar la factura.");
+      return;
+    }
+
+    const res = await fetch("/api/invoice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: billable.map((it) => ({
+          id: it.id,
+          name: it.name,
+          qty: it.qty,
+          price: it.price,
+          unit: it.unit,
+        })),
+        customer,
+      }),
     });
 
-    return (
-      `Hola, quiero confirmar este pedido (Farriña Fresh Fruits):\n\n` +
-      `PRODUCTOS:\n${lines.join("\n")}\n\n` +
-      `Subtotal: ${subtotal > 0 ? `RD$${subtotal}` : "Consultar"}\n` +
-      `Delivery: RD$${delivery}\n` +
-      `TOTAL: ${subtotal > 0 ? `RD$${total}` : "Consultar"}\n\n` +
-      `DATOS DE ENTREGA:\n` +
-      `Nombre: ${nombre || "—"}\n` +
-      `Teléfono: ${telefono || "—"}\n` +
-      `Zona: ${zona}\n` +
-      `Dirección: ${direccion || "—"}\n` +
-      `Notas: ${notas || "—"}\n\n` +
-      `Método de pago: ${pago}\n`
-    );
-  }, [items, subtotal, delivery, total, nombre, telefono, zona, direccion, notas, pago]);
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      alert("No se pudo generar la factura. " + (txt ? `(${txt})` : ""));
+      return;
+    }
 
-  const whatsappLink = buildWhatsAppLink("+18093185061", whatsappMsg);
-
-  const empty = items.length === 0;
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "factura-farrina.pdf";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 anim-fadeUp">
       {/* Header */}
-      <div className="bg-white border border-emerald-200 rounded-3xl p-6 shadow-sm">
-        <h2 className="text-3xl font-extrabold text-emerald-950">Carrito</h2>
-        <p className="text-emerald-900/70 mt-2">
-          Revisa tu pedido y confirma por WhatsApp.
-        </p>
-      </div>
+      <section className="bg-white border border-field rounded-3xl p-6 md:p-10 shadow-soft bg-field-grad">
+        <div className="flex items-end justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-field">Carrito</h1>
+            <p className="mt-2 text-black/65">
+              Selecciona cantidades, completa tus datos y descarga tu <b>factura PDF</b>.
+            </p>
+          </div>
 
-      {empty ? (
-        <div className="bg-white border border-emerald-200 rounded-3xl p-10 text-center shadow-sm">
-          <p className="text-emerald-900/80">Tu carrito está vacío.</p>
-          <a
+          <Link
             href="/productos"
-            className="inline-block mt-4 bg-emerald-900 text-white px-6 py-3 rounded-2xl font-semibold"
+            className="border border-field px-5 py-3 rounded-2xl font-extrabold hover:bg-[color:var(--sand)] transition"
           >
-            Ir a productos
-          </a>
+            Seguir comprando
+          </Link>
         </div>
-      ) : (
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Lista productos */}
-          <section className="lg:col-span-2 bg-white border border-emerald-200 rounded-3xl p-6 shadow-sm">
-            <h3 className="text-xl font-extrabold text-emerald-950">Resumen de pedido</h3>
+      </section>
 
-            <div className="mt-5 space-y-4">
-              {items.map((it) => (
+      {/* Items */}
+      <section className="bg-white border border-field rounded-3xl p-6 md:p-10 shadow-soft">
+        {cart.length === 0 ? (
+          <div className="text-black/70">
+            Tu carrito está vacío.{" "}
+            <Link className="underline" href="/productos">
+              Ver productos
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {cart.map((it) => {
+              const lineTotal = it.price > 0 ? it.price * it.qty : 0;
+
+              return (
                 <div
-                  key={`${it.id}-${it.variant}`}
-                  className="border border-emerald-100 rounded-2xl p-4 flex gap-4 items-center"
+                  key={it.id}
+                  className="flex items-center justify-between gap-4 border border-field rounded-2xl p-4 card-hover"
                 >
-                  <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-emerald-50 border border-emerald-100">
-                    {it.image ? (
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden border border-field bg-[color:var(--sand)]">
                       <Image
-                        src={it.image}
+                        src={it.image || "/images/placeholder.jpg"}
                         alt={it.name}
                         fill
                         style={{ objectFit: "cover" }}
                       />
-                    ) : null}
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="font-extrabold text-emerald-950 leading-tight">
-                      {it.name}
                     </div>
-                    <div className="text-sm text-emerald-900/70">{it.variant}</div>
-                    <div className="text-sm mt-1">
-                      <span className="text-emerald-900/60">Precio: </span>
-                      <span className="font-semibold text-emerald-950">
-                        {it.price > 0 ? `RD$${it.price}` : "Consultar"}
-                      </span>
+
+                    <div className="min-w-0">
+                      <div className="font-extrabold text-field truncate">{it.name}</div>
+                      <div className="text-sm text-black/60">
+                        {it.unit ? it.unit : "—"} •{" "}
+                        {it.price > 0 ? moneyRD(it.price) : "Consultar"}
+                        {it.price > 0 ? ` • Sub: ${moneyRD(lineTotal)}` : ""}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Cantidad */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      className="w-9 h-9 rounded-xl border border-emerald-200 hover:bg-emerald-50 font-bold"
-                      onClick={() => {
-                        const updated = updateQty(it.id, it.variant, it.qty - 1);
-                        setItems(updated);
-                      }}
-                    >
-                      −
-                    </button>
-                    <div className="w-10 text-center font-bold">{it.qty}</div>
-                    <button
-                      className="w-9 h-9 rounded-xl border border-emerald-200 hover:bg-emerald-50 font-bold"
-                      onClick={() => {
-                        const updated = updateQty(it.id, it.variant, it.qty + 1);
-                        setItems(updated);
-                      }}
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  {/* Subtotal */}
-                  <div className="w-28 text-right">
-                    <div className="text-xs text-emerald-900/60">Subtotal</div>
-                    <div className="font-extrabold text-emerald-950">
-                      {it.price > 0 ? `RD$${it.price * it.qty}` : "—"}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center border border-field rounded-2xl overflow-hidden bg-white">
+                      <button
+                        className="px-3 py-2 font-extrabold hover:bg-[color:var(--sand)]"
+                        onClick={() => {
+                          updateQty(it.id, it.qty - 1);
+                          setRefresh((r) => r + 1);
+                        }}
+                      >
+                        -
+                      </button>
+                      <div className="px-4 py-2 font-extrabold">{it.qty}</div>
+                      <button
+                        className="px-3 py-2 font-extrabold hover:bg-[color:var(--sand)]"
+                        onClick={() => {
+                          updateQty(it.id, it.qty + 1);
+                          setRefresh((r) => r + 1);
+                        }}
+                      >
+                        +
+                      </button>
                     </div>
+
                     <button
-                      className="mt-2 text-xs font-semibold text-red-600 hover:underline"
+                      className="text-sm font-extrabold px-4 py-2 rounded-2xl border border-field hover:bg-[color:var(--sand)] transition"
                       onClick={() => {
-                        const updated = removeFromCart(it.id, it.variant);
-                        setItems(updated);
+                        removeFromCart(it.id);
+                        setRefresh((r) => r + 1);
                       }}
                     >
                       Quitar
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
+              );
+            })}
 
-          {/* Panel derecha: entrega + pago + total */}
-          <aside className="bg-white border border-emerald-200 rounded-3xl p-6 shadow-sm space-y-6">
-            <div>
-              <h3 className="text-xl font-extrabold text-emerald-950">Entrega</h3>
-              <div className="mt-4 grid gap-3">
-                <input
-                  className="border border-emerald-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-200"
-                  placeholder="Nombre"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                />
-                <input
-                  className="border border-emerald-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-200"
-                  placeholder="Teléfono"
-                  value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
-                />
-                <select
-                  className="border border-emerald-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-200"
-                  value={zona}
-                  onChange={(e) => setZona(e.target.value)}
-                >
-                  <option>Santo Domingo</option>
-                  <option>Santo Domingo Este</option>
-                  <option>Santo Domingo Norte</option>
-                  <option>Santo Domingo Oeste</option>
-                  <option>Distrito Nacional</option>
-                  <option>Otra (consultar)</option>
-                </select>
-                <textarea
-                  className="border border-emerald-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-200"
-                  placeholder="Dirección"
-                  rows={3}
-                  value={direccion}
-                  onChange={(e) => setDireccion(e.target.value)}
-                />
-                <textarea
-                  className="border border-emerald-200 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-emerald-200"
-                  placeholder="Notas (opcional)"
-                  rows={2}
-                  value={notas}
-                  onChange={(e) => setNotas(e.target.value)}
-                />
-              </div>
-            </div>
+            {/* Totales + acciones */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+              <button
+                onClick={() => {
+                  clearCart();
+                  setRefresh((r) => r + 1);
+                }}
+                className="text-sm font-extrabold px-5 py-3 rounded-2xl border border-field hover:bg-[color:var(--sand)] transition"
+              >
+                Vaciar carrito
+              </button>
 
-            <div>
-              <h3 className="text-xl font-extrabold text-emerald-950">Pago</h3>
-              <div className="mt-3 grid gap-2">
-                {(
-                  ["Transferencia", "Contra entrega", "Pago online (próximamente)"] as PaymentMethod[]
-                ).map((m) => (
-                  <label
-                    key={m}
-                    className={
-                      "flex items-center gap-3 border rounded-2xl px-4 py-3 cursor-pointer transition " +
-                      (pago === m
-                        ? "border-emerald-700 bg-emerald-50"
-                        : "border-emerald-200 hover:bg-emerald-50")
-                    }
-                  >
-                    <input
-                      type="radio"
-                      name="pago"
-                      checked={pago === m}
-                      onChange={() => setPago(m)}
-                    />
-                    <span className="font-semibold text-emerald-950">{m}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="border-t border-emerald-100 pt-5 space-y-2">
-              <div className="flex justify-between text-sm text-emerald-900/70">
-                <span>Subtotal</span>
-                <span>{subtotal > 0 ? `RD$${subtotal}` : "Consultar"}</span>
-              </div>
-              <div className="flex justify-between text-sm text-emerald-900/70">
-                <span>Delivery</span>
-                <span>RD${delivery}</span>
-              </div>
-
-              <div className="flex justify-between items-end">
-                <div>
-                  <div className="text-xs text-emerald-900/60">Total</div>
-                  <div className="text-3xl font-extrabold text-emerald-950">
-                    {subtotal > 0 ? `RD$${total}` : "Consultar"}
-                  </div>
+              <div className="text-right">
+                <div className="text-sm text-black/60">Subtotal facturable</div>
+                <div className="text-2xl font-extrabold text-field">
+                  {moneyRD(totals.subtotal)}
                 </div>
               </div>
-
-              <a
-                href={whatsappLink}
-                target="_blank"
-                className="mt-4 block text-center bg-green-500 text-white px-6 py-4 rounded-2xl font-extrabold shadow-md hover:bg-green-600 transition"
-              >
-                Confirmar pedido por WhatsApp
-              </a>
-
-              <p className="text-xs text-emerald-900/60 mt-2">
-                Al confirmar, se enviará tu pedido con tus datos por WhatsApp.
-              </p>
             </div>
-          </aside>
+
+            {/* Aviso si hay consultables */}
+            {consult.length > 0 && (
+              <div className="mt-4 text-sm text-black/65 bg-[color:var(--sand)] border border-field rounded-2xl p-4">
+                <b>Nota:</b> Tienes {consult.length} producto(s) en modo{" "}
+                <b>Consultar</b>. Esos no entran en la factura hasta que tengan precio.
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Checkout */}
+      <section className="bg-white border border-field rounded-3xl p-6 md:p-10 shadow-soft">
+        <h2 className="text-2xl font-extrabold text-field">Checkout</h2>
+        <p className="mt-2 text-black/65">
+          Completa tus datos para generar la factura/cotización en PDF.
+        </p>
+
+        <div className="mt-6 grid md:grid-cols-2 gap-4">
+          <input
+            value={customer.name}
+            onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+            placeholder="Nombre y apellido / Empresa"
+            className="px-4 py-3 rounded-2xl border border-field outline-none focus:ring-2 focus:ring-[color:var(--gold)]"
+          />
+          <input
+            value={customer.phone}
+            onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+            placeholder="Teléfono / WhatsApp"
+            className="px-4 py-3 rounded-2xl border border-field outline-none focus:ring-2 focus:ring-[color:var(--gold)]"
+          />
+          <input
+            value={customer.email}
+            onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+            placeholder="Correo (opcional)"
+            className="px-4 py-3 rounded-2xl border border-field outline-none focus:ring-2 focus:ring-[color:var(--gold)]"
+          />
+          <input
+            value={customer.rnc}
+            onChange={(e) => setCustomer({ ...customer, rnc: e.target.value })}
+            placeholder="RNC (opcional)"
+            className="px-4 py-3 rounded-2xl border border-field outline-none focus:ring-2 focus:ring-[color:var(--gold)]"
+          />
+          <textarea
+            value={customer.address}
+            onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+            placeholder="Dirección de entrega (opcional)"
+            className="md:col-span-2 px-4 py-3 rounded-2xl border border-field outline-none focus:ring-2 focus:ring-[color:var(--gold)] min-h-[100px]"
+          />
+
+          <button
+            onClick={downloadInvoice}
+            className="md:col-span-2 bg-[color:var(--gold)] text-black px-6 py-3 rounded-2xl font-extrabold shadow-sm hover:opacity-95 transition"
+          >
+            Descargar factura (PDF)
+          </button>
+
+          <p className="md:col-span-2 text-xs text-black/55">
+            * La factura solo incluye productos con precio. Los “Consultar” quedan fuera.
+          </p>
         </div>
-      )}
+      </section>
     </div>
   );
 }
