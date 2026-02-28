@@ -53,6 +53,7 @@ export default function Navbar() {
           <Link className="hover:underline" href="/productos">Productos</Link>
           <Link className="hover:underline" href="/catalogo">Catálogo</Link>
           <Link className="hover:underline" href="/invertir">Invertir</Link>
+          <a className="hover:underline" href="/#conocenos">Conócenos</a>
 
           <Link className="hover:underline flex items-center" href="/carrito">
             Carrito
