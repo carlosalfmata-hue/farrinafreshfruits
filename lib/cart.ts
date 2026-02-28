@@ -1,5 +1,6 @@
 // lib/cart.ts
 export type CartItem = {
+  variant?: string;
   id: string;
   name: string;
   price: number; // RD$ (0 = Consultar / no facturable)
@@ -44,6 +45,7 @@ function writeCart(items: CartItem[]) {
   if (!isBrowser()) return;
   window.localStorage.setItem(KEY, JSON.stringify(items));
   notifyCartUpdated();
+  
 }
 function notifyCartUpdated() {
   if (!isBrowser()) return;
