@@ -30,3 +30,26 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Paleta CEO Agro-Fintech */
+:root {
+  --bg: #f7f3ea;         /* blanco cálido */
+  --ink: #102a21;        /* verde casi negro */
+  --field: #0f3d2e;      /* verde profundo */
+  --leaf: #1e5b3a;       /* verde natural */
+  --soil: #7a5c3e;       /* tierra */
+  --sand: #e8e2d6;       /* beige tierra */
+  --gold: #c5a645;       /* acento inversión */
+  --card: #ffffff;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* Helpers */
+.bg-soil { background-color: var(--soil); }
+.bg-sand { background-color: var(--sand); }
+.text-field { color: var(--field); }
+.border-field { border-color: rgba(15, 61, 46, 0.25); }
+.shadow-soft { box-shadow: 0 12px 30px rgba(16, 42, 33, 0.10); }
